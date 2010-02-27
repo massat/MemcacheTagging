@@ -1,5 +1,9 @@
 <?php
 
+/**
+ * A Memcached client tagging supported.
+ *
+ */
 class MemcacheTagging
 {
     const SEPARATOR = ':';
@@ -22,6 +26,17 @@ class MemcacheTagging
     private $tagKeyPrefix;
     
     /**
+     * factory method
+     *
+     * available option
+     *   * lifetime
+     *   * namespace
+     *   * servers
+     *     * host
+     *     * port
+     *     * persistent
+     *     * weight
+     *
      * @param array $options
      * @return MemcacheTagging
      */
@@ -30,6 +45,14 @@ class MemcacheTagging
         return new MemcacheTagging($options);
     }
     
+    /**
+     * set a value with tags
+     *
+     * @param string $key
+     * @param mixed $value
+     * @param array $tags
+     * @param int $lifetime
+     */
     public function set($key, $value, array $tags = array(), $lifetime = null)
     {
         $lifetime = is_null($lifetime) ? $this->lifetime : $lifetime;
@@ -39,15 +62,28 @@ class MemcacheTagging
         $this->setValueMetaData($key, $tags, $expire);
         
         foreach($tags as $tag) {
-            $this->addTagMetaData($key, $tag, $expire);
+            $this->addTagMetaData($key, $tag);
         }
     }
     
+    /**
+     * get a value associated with key
+     *
+     * @param string $key
+     * @param mixed $default
+     * @return mixed
+     */
     public function get($key, $default = null)
     {
         return $this->getValue($key, $default);
     }
     
+    /**
+     * get values associated with keys
+     *
+     * @param array $keys
+     * @return array
+     */
     public function getMany(array $keys)
     {
         $values = array();
@@ -59,6 +95,12 @@ class MemcacheTagging
         return $values;
     }
     
+    /**
+     * get tags associated with key
+     *
+     * @param string $key
+     * @return array
+     */
     public function getTags($key)
     {
         $tags = array();
@@ -73,6 +115,12 @@ class MemcacheTagging
         return $tags;
     }
     
+    /**
+     * get values associated with tag
+     *
+     * @param string $tag
+     * @return array
+     */
     public function getByTag($tag)
     {
         $values = array();
@@ -88,6 +136,11 @@ class MemcacheTagging
         return $values;
     }
     
+    /**
+     * delete a value associated with key
+     *
+     * @param string $key
+     */
     public function delete($key)
     {
         $tags = $this->getTags($key);
@@ -99,25 +152,52 @@ class MemcacheTagging
         }
     }
     
-    
+    /**
+     * delete values associated with tags
+     *
+     * @param array $tags
+     */
     public function deleteByTags(array $tags)
     {
         
     }
     
+    /**
+     * clear all values
+     *
+     * @return boolean
+     */
     public function flush()
     {
         return $this->cache->flush();
     }
     
-    ///////////////////////////////////////////////////////////////////////////////////////
+    /********************************
+     *  private methods
+     ********************************/
     
+    /**
+     * set a value with key
+     *
+     * @param string $key
+     * @param string $value
+     * @param int $expire
+     * @return boolean
+     */
     private function setValue($key, $value, $expire = null)
     {
         $valueKey = $this->valueKeyPrefix . $key;
-        $this->_set($valueKey, $value, $expire);
+        return $this->_set($valueKey, $value, $expire);
     }
     
+    /**
+     * set a value-meta-data
+     *
+     * @param string $key
+     * @param array $tags
+     * @param int $expire
+     * @return boolean
+     */
     private function setValueMetaData($key, array $tags = array(), $expire = null)
     {
         $metaKey = $this->metaKeyPrefix . $key;
@@ -127,71 +207,127 @@ class MemcacheTagging
             'tags'          => $tags
         );
         
-        $this->_set($metaKey, $metaData, $expire);
+        return $this->_set($metaKey, $metaData, $expire);
     }
     
-    private function addTagMetaData($key, $tag, $expire = null)
+    /**
+     * add a tag-meta-data
+     *
+     * @param string $key
+     * @param string $tag
+     * @return boolean
+     */
+    private function addTagMetaData($key, $tag)
     {
         $tagKey = $this->tagKeyPrefix . $tag;
         $metaData = $this->getTagMetaData($tag);
         
         if(!in_array($key, $metaData['keys'])) {
             $metaData['keys'][] = $key;
-            $this->_set($tagKey, $metaData, $expire);
+            return $this->_set($tagKey, $metaData, 0);
         }
+        
+        return false;
     }
     
+    /**
+     * get a value with associated key
+     *
+     * @param string $key
+     * @param mixed $default
+     * @return mixed
+     */
     private function getValue($key, $default = null)
     {
         $valueKey = $this->valueKeyPrefix . $key;
         return $this->_get($valueKey, $default);
     }
     
+    /**
+     * get a value-meta-data associated with key
+     *
+     * @param string $key
+     * @return array
+     */
     private function getValueMetaData($key)
     {
         $metaKey = $this->metaKeyPrefix . $key;
         return $this->_get($metaKey, array());
     }
     
+    /**
+     * get a tag-meta-data
+     *
+     * @param string $tag
+     * @return array
+     */
     private function getTagMetaData($tag)
     {
         $tagKey = $this->tagKeyPrefix . $tag;
         return $this->_get($tagKey, array('keys' => array()));
     }
     
+    /**
+     * delete a value associated with key
+     *
+     * @param string $key
+     * @return boolean
+     */
     private function deleteValue($key)
     {
         $valueKey = $this->valueKeyPrefix . $key;
-        $this->_delete($valueKey);
+        return $this->_delete($valueKey);
     }
     
+    /**
+     * delete a value-meta-data associated with key
+     *
+     * @param string $key
+     * @return boolean
+     */
     private function deleteValueMetaData($key)
     {
         $metaKey  = $this->metaKeyPrefix  . $key;
-        $this->_delete($metaKey);
+        return $this->_delete($metaKey);
     }
     
+    /**
+     * delete a tag-meta-data
+     *
+     * @param string $tag
+     * @return boolean
+     */
     private function deleteTagMetaData($tag)
     {
         $tagKey = $this->tagKeyPrefix . $tag;
-        $this->_delete($tagKey);
+        return $this->_delete($tagKey);
     }
     
-    private function removeFromTagMetaData($key, $tag, $expire = null)
+    /**
+     * remove key from tag-meta-data
+     *
+     * @param string $key
+     * @param string $tag
+     */
+    private function removeFromTagMetaData($key, $tag)
     {
         $tagKey = $this->tagKeyPrefix . $tag;
         $tagMetaData = $this->getTagMetaData($tag);
         if(in_array($key, $tagMetaData['keys'])) {
             unset($tagMetaData['keys'][$key]);
-            $this->_set($tagKey, $tagMetaData, $expire);
+            $this->_set($tagKey, $tagMetaData, 0);
         }
     }
     
-    
-    
-    
-    
-    
+    /**
+     * wraps Memcache::set
+     *
+     * @param string $key
+     * @param mixed $value
+     * @param int $expire
+     * @return boolean
+     * @link http://www.php.net/manual/ja/function.memcache-set.php
+     */
     private function _set($key, $value, $expire = null)
     {
         if(false !== $this->cache->replace($key, $value, null, $expire)) {
@@ -201,22 +337,52 @@ class MemcacheTagging
         return $this->cache->set($key, $value, null, $expire);
     }
     
+    /**
+     * wraps Memcache::get
+     *
+     * @param mixed $key
+     * @param mixed $default
+     * @return mixed
+     * @link http://www.php.net/manual/ja/function.memcache-get.php
+     */
     private function _get($key, $default = null)
     {
         return (false !== ($value = $this->cache->get($key))) ? $value : $default;
     }
     
+    /**
+     * wraps Memcache::delete
+     *
+     * @param string $key
+     * @return boolean
+     * @link http://www.php.net/manual/ja/function.memcache-delete.php
+     */
     private function _delete($key)
     {
         return $this->cache->delete($key);
     }
     
+    /**
+     * constructor
+     *
+     * * available option
+     *   * lifetime
+     *   * namespace
+     *   * servers
+     *     * host
+     *     * port
+     *     * persistent
+     *     * weight
+     *
+     * @param array $options
+     */
     private function __construct(array $options = array())
     {
         if(!class_exists('Memcache')) {
             throw Exception('Memcache module is not available.');
         }
         
+        // Memcache instance
         $this->cache = new Memcache();
         
         $this->lifetime  = isset($options['lifetime'])  ? $options['lifetime']  : self::$defaultLifetime;
@@ -226,6 +392,8 @@ class MemcacheTagging
         $this->metaKeyPrefix  = $this->namespace . self::SEPARATOR . self::KEY_INDICATOR_META  . self::SEPARATOR;
         $this->tagKeyPrefix   = $this->namespace . self::SEPARATOR . self::KEY_INDICATOR_TAG   . self::SEPARATOR;
         
+        
+        // register memcached servers
         $servers = isset($options['servers'])
             ? $options['servers']
             : array(
