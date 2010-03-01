@@ -26,7 +26,7 @@ class MemcacheTagging
     private $tagKeyPrefix;
     
     /**
-     * factory method
+     * returns an instance
      *
      * available option
      *   * lifetime
@@ -46,7 +46,7 @@ class MemcacheTagging
     }
     
     /**
-     * set a value with tags
+     * saves a value in the cache with given key and tags
      *
      * @param string $key
      * @param mixed $value
@@ -67,7 +67,7 @@ class MemcacheTagging
     }
     
     /**
-     * get a value associated with key
+     * returns a cached content for a given key
      *
      * @param string $key
      * @param mixed $default
@@ -79,7 +79,7 @@ class MemcacheTagging
     }
     
     /**
-     * get values associated with keys
+     * returns cached values for given keys
      *
      * @param array $keys
      * @return array
@@ -96,7 +96,7 @@ class MemcacheTagging
     }
     
     /**
-     * get tags associated with key
+     * returns tags associated with a given key
      *
      * @param string $key
      * @return array
@@ -116,7 +116,7 @@ class MemcacheTagging
     }
     
     /**
-     * get values associated with tag
+     * returns values for a given tag
      *
      * @param string $tag
      * @return array
@@ -137,7 +137,40 @@ class MemcacheTagging
     }
     
     /**
-     * delete a value associated with key
+     * returns true if there is a cache for the given key.
+     *
+     * @param unknown_type $key
+     * @return unknown
+     */
+    public function has($key)
+    {
+        return $this->getValue($key, false) !== false;
+    }
+    
+    /**
+     * returns a last modified timestamp for a given key
+     *
+     * @param unknown_type $key
+     * @return unknown
+     */
+    public function getLastModified($key)
+    {
+        return ($metaData = $this->getValueMetaData($key)) ? $metaData['last_modified'] : null;
+    }
+    
+    /**
+     * returns an expiring timestamp for a given key
+     *
+     * @param unknown_type $key
+     * @return unknown
+     */
+    public function getTimeout($key)
+    {
+        return ($metaData = $this->getValueMetaData($key)) ? $metaData['expire'] : null;
+    }
+    
+    /**
+     * delete a cached content for a given key
      *
      * @param string $key
      */
@@ -153,17 +186,21 @@ class MemcacheTagging
     }
     
     /**
-     * delete values associated with tags
+     * delete cached values for a given tag
      *
-     * @param array $tags
+     * @param string $tag
      */
-    public function deleteByTags(array $tags)
+    public function deleteByTag($tag)
     {
-        
+        if($tagMetaData = $this->getTagMetaData($tag)) {
+            foreach($tagMetaData['keys'] as $key) {
+                $this->delete($key);
+            }
+        }
     }
     
     /**
-     * clear all values
+     * clear all cached contents
      *
      * @return boolean
      */
