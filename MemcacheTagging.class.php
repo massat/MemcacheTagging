@@ -133,14 +133,15 @@ class MemcacheTagging
         ) {
             $values = $this->getMany($meta['keys']);
         }
+        
         return $values;
     }
     
     /**
      * returns true if there is a cache for the given key.
      *
-     * @param unknown_type $key
-     * @return unknown
+     * @param string $key
+     * @return boolean
      */
     public function has($key)
     {
@@ -150,8 +151,8 @@ class MemcacheTagging
     /**
      * returns a last modified timestamp for a given key
      *
-     * @param unknown_type $key
-     * @return unknown
+     * @param string $key
+     * @return int|null
      */
     public function getLastModified($key)
     {
@@ -161,8 +162,8 @@ class MemcacheTagging
     /**
      * returns an expiring timestamp for a given key
      *
-     * @param unknown_type $key
-     * @return unknown
+     * @param string $key
+     * @return int|null
      */
     public function getTimeout($key)
     {
@@ -210,7 +211,7 @@ class MemcacheTagging
     }
     
     /********************************
-     *  private methods
+     * private methods
      ********************************/
     
     /**
@@ -416,11 +417,14 @@ class MemcacheTagging
     private function __construct(array $options = array())
     {
         if(!class_exists('Memcache')) {
-            throw Exception('Memcache module is not available.');
+            throw new Exception('Memcache module is not available.');
         }
         
         // Memcache instance
         $this->cache = new Memcache();
+        
+        // a guide of the version of Memcache module
+        $version = method_exists($this->cache, 'addServer') ? 2 : 1;
         
         $this->lifetime  = isset($options['lifetime'])  ? $options['lifetime']  : self::$defaultLifetime;
         $this->namespace = isset($options['namespace']) ? $options['namespace'] : md5(dirname(__FILE__));
@@ -428,7 +432,6 @@ class MemcacheTagging
         $this->valueKeyPrefix = $this->namespace . self::SEPARATOR . self::KEY_INDICATOR_VALUE . self::SEPARATOR;
         $this->metaKeyPrefix  = $this->namespace . self::SEPARATOR . self::KEY_INDICATOR_META  . self::SEPARATOR;
         $this->tagKeyPrefix   = $this->namespace . self::SEPARATOR . self::KEY_INDICATOR_TAG   . self::SEPARATOR;
-        
         
         // register memcached servers
         $servers = isset($options['servers'])
@@ -440,6 +443,10 @@ class MemcacheTagging
                       'persistent' => true
                   )
               );
+              
+        if(($version < 2) && (count($servers) > 1)) {
+            throw new Exception('The version of Memcache module is required to be lather than 2.0.0 for multi servers.');
+        }
         
         foreach($servers as $server)
         {
@@ -448,12 +455,16 @@ class MemcacheTagging
             $persistent = isset($server['persistent']) ? $server['persistent'] : true;
             $weight     = isset($server['weight'])     ? $server['weight']     : 1;
             
-            if(!$this->cache->addServer($host, $port, $persistent, $weight)) {
-                throw Exception(sprintf("Can't connect to Memcache Server (%s:%s)", $host, $port));
+            if($version >= 2) {
+                if(!$this->cache->addServer($host, $port, $persistent, $weight)) {
+                    throw new Exception(sprintf("Can't connect to Memcache Server (%s:%s)", $host, $port));
+                }
+            } else {
+                $method = $persistent ? 'pconnect' : 'connect';
+                if(!$this->cache->$method($host, $port)) {
+                    throw new Exception(sprintf("Can't connect to Memcache Server (%s:%s)", $host, $port));
+                }
             }
         }
-        
-        
     }
-        
 }
