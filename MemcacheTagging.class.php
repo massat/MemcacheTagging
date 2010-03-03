@@ -1,8 +1,9 @@
 <?php
-
 /**
  * A Memcached client tagging supported.
- *
+ * @author massat <mail@massat.jp>
+ * @package MemcachedTagging
+ * @link http://github.com/massat/MemcacheTagging
  */
 class MemcacheTagging
 {
