@@ -31,7 +31,7 @@ Options for the factory method are below, and all optional.
 * namespace
 * servers
 
-The "servers" option is expected to be a two-dimensional array like below.
+The "servers" option is expected to be a two-dimensional array like below. (Memcache module >= 2.0 is needed for multi servers)
 
     $options = array(
         'servers' => array(
